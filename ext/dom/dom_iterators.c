@@ -123,8 +123,10 @@ static void php_dom_iterator_current_key(zend_object_iterator *iter, zval *key) 
 {
 	php_dom_iterator *iterator = (php_dom_iterator *)iter;
 	zval *object = &iterator->intern.data;
+	zend_class_entry *ce = Z_OBJCE_P(object);
 
-	if (instanceof_function(Z_OBJCE_P(object), dom_nodelist_class_entry)) {
+	/* Nodelists have the index as a key while named node maps have the name as a key. */
+	if (instanceof_function(ce, dom_nodelist_class_entry) || instanceof_function(ce, dom_modern_nodelist_class_entry)) {
 		ZVAL_LONG(key, iter->index);
 	} else {
 		dom_object *intern = Z_DOMOBJ_P(&iterator->curobj);
@@ -138,6 +140,26 @@ static void php_dom_iterator_current_key(zend_object_iterator *iter, zval *key) 
 	}
 }
 /* }}} */
+
+static xmlNodePtr dom_fetch_first_iteration_item(dom_nnodemap_object *objmap)
+{
+	xmlNodePtr basep = dom_object_get_node(objmap->baseobj);
+	if (!basep) {
+		return NULL;
+	}
+	if (objmap->nodetype == XML_ATTRIBUTE_NODE || objmap->nodetype == XML_ELEMENT_NODE) {
+		if (objmap->nodetype == XML_ATTRIBUTE_NODE) {
+			return (xmlNodePtr) basep->properties;
+		} else {
+			return basep->children;
+		}
+	} else {
+		int curindex = 0;
+		xmlNodePtr nodep = php_dom_first_child_of_container_node(basep);
+		return dom_get_elements_by_tag_name_ns_raw(
+			basep, nodep, objmap->ns, objmap->local, objmap->local_lower, &curindex, 0);
+	}
+}
 
 static void php_dom_iterator_move_forward(zend_object_iterator *iter) /* {{{ */
 {
@@ -166,8 +188,19 @@ static void php_dom_iterator_move_forward(zend_object_iterator *iter) /* {{{ */
 			} else {
 				if (objmap->nodetype == XML_ATTRIBUTE_NODE ||
 					objmap->nodetype == XML_ELEMENT_NODE) {
-					curnode = (xmlNodePtr)((php_libxml_node_ptr *)intern->ptr)->node;
-					curnode = curnode->next;
+
+					/* Note: keep legacy behaviour for non-spec mode. */
+					if (php_dom_follow_spec_intern(intern) && php_dom_is_cache_tag_stale_from_doc_ptr(&iterator->cache_tag, intern->document)) {
+						php_dom_mark_cache_tag_up_to_date_from_doc_ref(&iterator->cache_tag, intern->document);
+						curnode = dom_fetch_first_iteration_item(objmap);
+						zend_ulong index = 0;
+						while (curnode != NULL && index++ < iter->index) {
+							curnode = curnode->next;
+						}
+					} else {
+						curnode = (xmlNodePtr)((php_libxml_node_ptr *)intern->ptr)->node;
+						curnode = curnode->next;
+					}
 				} else {
 					/* The collection is live, we nav the tree from the base object if we cannot
 					 * use the cache to restart from the last point. */
@@ -219,7 +252,6 @@ zend_object_iterator *php_dom_get_iterator(zend_class_entry *ce, zval *object, i
 	dom_object *intern;
 	dom_nnodemap_object *objmap;
 	xmlNodePtr curnode=NULL;
-	int curindex = 0;
 	HashTable *nodeht;
 	zval *entry;
 	php_dom_iterator *iterator;
@@ -249,27 +281,13 @@ zend_object_iterator *php_dom_get_iterator(zend_class_entry *ce, zval *object, i
 					ZVAL_COPY(&iterator->curobj, entry);
 				}
 			} else {
-				xmlNodePtr basep = (xmlNode *)dom_object_get_node(objmap->baseobj);
-				if (!basep) {
-					goto err;
-				}
-				if (objmap->nodetype == XML_ATTRIBUTE_NODE || objmap->nodetype == XML_ELEMENT_NODE) {
-					if (objmap->nodetype == XML_ATTRIBUTE_NODE) {
-						curnode = (xmlNodePtr) basep->properties;
-					} else {
-						curnode = (xmlNodePtr) basep->children;
-					}
-				} else {
-					xmlNodePtr nodep = php_dom_first_child_of_container_node(basep);
-					curnode = dom_get_elements_by_tag_name_ns_raw(
-						basep, nodep, objmap->ns, objmap->local, objmap->local_lower, &curindex, 0);
-				}
+				curnode = dom_fetch_first_iteration_item(objmap);
 			}
 		} else {
 			curnode = php_dom_libxml_hash_iter(objmap, 0);
 		}
 	}
-err:
+
 	if (curnode) {
 		php_dom_create_object(curnode, &iterator->curobj, objmap->baseobj);
 	}

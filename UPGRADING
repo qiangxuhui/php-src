@@ -64,6 +64,10 @@ PHP 8.4 UPGRADE NOTES
     is converted to Unicode. This is significant because around 40 SJIS-Mac characters
     convert to a sequence of multiple Unicode codepoints.
 
+- ODBC:
+  . odbc_fetch_row() returns false when a value less than or equal to 0 is
+    passed for parameter $row. Now, a warning is emitted in this case.
+
 - Opcache:
   . The JIT config defaults changed from opcache.jit=tracing and
     opcache.jit_buffer_size=0 to opcache.jit=disable and
@@ -92,7 +96,7 @@ PHP 8.4 UPGRADE NOTES
 
 - PDO_MYSQL:
   . getAttribute, ATTR_AUTOCOMMIT, ATTR_EMULATE_PREPARES, MYSQL_ATTR_DIRECT_QUERY have
-    been changed to get values ​​as bool.
+    been changed to get values as bool.
 
 - PDO_PGSQL:
   . The DSN's credentials, when set, are given priority over their PDO
@@ -360,6 +364,12 @@ PHP 8.4 UPGRADE NOTES
   . New serial_hex parameter added to openssl_csr_sign to allow setting serial
     number in the hexadecimal format.
 
+- ODBC:
+  . Parameter $row of odbc_fetch_object(), odbc_fetch_array(), and
+    odbc_fetch_into() now has a default value of null, consistent with
+    odbc_fetch_row(). Previously, the default values were -1, -1, and 0,
+    respectively.
+
 - Output:
   . Output handler status flags passed to the flags parameter of ob_start
     are now cleared.
@@ -368,7 +378,7 @@ PHP 8.4 UPGRADE NOTES
   . getAttribute, enabled to get the value of ATTR_STRINGIFY_FETCHES.
 
 - PDO_FIREBIRD:
-  . getAttribute, enabled to get values ​​of FB_ATTR_DATE_FORMAT, FB_ATTR_TIME_FORMAT,
+  . getAttribute, enabled to get values of FB_ATTR_DATE_FORMAT, FB_ATTR_TIME_FORMAT,
     FB_ATTR_TIMESTAMP_FORMAT.
   . Added new attributes to specify transaction isolation level and access mode.
     Along with these, five constants (PDO::FB_TRANSACTION_ISOLATION_LEVEL,
@@ -382,6 +392,14 @@ PHP 8.4 UPGRADE NOTES
 
 - PGSQL:
   . pg_select, the conditions arguments accepts an empty array and is optional.
+
+- POSIX:
+  . posix_isatty now sets the error number when the file descriptor/stream argument
+    is invalid.
+
+- Sockets:
+  . Parameter $backlog of socket_create_listen() now has a default value of SOMAXCONN.
+    Previously, it was 128.
 
 - SPL:
   . SplPriorityQueue::insert() and SplPriorityQueue::recoverFromCorruption()
@@ -410,7 +428,7 @@ PHP 8.4 UPGRADE NOTES
     "pre-rounding" to treat a value like 0.285 (actually 0.28499999999999998) as a
     decimal number and round it to 0.29. However, "pre-rounding" incorrectly rounds
     certain numbers, so this fix removes "pre-rounding" and changes the way numbers
-    are compared, so that the values ​​are correctly rounded as decimal numbers.
+    are compared, so that the values are correctly rounded as decimal numbers.
   . long2ip() now returns string instead of string|false.
   . The maximum precision that can be handled by round() has been extended by
     one digit.
@@ -431,6 +449,8 @@ PHP 8.4 UPGRADE NOTES
 - Intl:
   . Added IntlDateFormatter::getIanaID()/intltz_get_iana_id() to
     the IANA identifier from a given timezone.
+  . Added grapheme_str_split which allow to support emoji and Variation
+    Selectors.
 
 - MBString:
   . Added mb_trim, mb_ltrim and mb_rtrim functions.
@@ -566,6 +586,7 @@ PHP 8.4 UPGRADE NOTES
   . SOCK_CONN_DGRAM (NetBSD only).
   . SOCK_DCCP (NetBSD only).
   . TCP_SYNCNT (Linux only).
+  . SO_EXCLBIND (Solaris/Illumos only).
 
 - Sodium:
   . SODIUM_CRYPTO_AEAD_AEGIS128L_KEYBYTES

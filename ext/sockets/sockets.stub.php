@@ -410,6 +410,13 @@ const SO_MEMINFO = UNKNOWN;
  */
 const SO_BPF_EXTENSIONS = UNKNOWN;
 #endif
+#ifdef SO_EXCLBIND
+/**
+ * @var int
+ * @cvalue SO_EXCLBIND
+ */
+const SO_EXCLBIND = UNKNOWN;
+#endif
 #ifdef SKF_AD_OFF
 /**
  * @var int
@@ -1878,7 +1885,7 @@ final class AddressInfo
 
 function socket_select(?array &$read, ?array &$write, ?array &$except, ?int $seconds, int $microseconds = 0): int|false {}
 
-function socket_create_listen(int $port, int $backlog = 128): Socket|false {}
+function socket_create_listen(int $port, int $backlog = SOMAXCONN): Socket|false {}
 
 function socket_accept(Socket $socket): Socket|false {}
 
